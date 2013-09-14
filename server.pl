@@ -36,9 +36,9 @@ while(1)
     my $data = "";
     $client_socket->recv($data, 1024);
     #print "received data: $data\n";
- 
+    my $ID = NetCC::Server->new($data);
+    $ID->Check();
     # write response data to the connected client
-    $data = "$data";
     $digest = md5_base64($data);
     # @array = ( $data =~ m/..../g );
     # ($Filler, $NetworkID, $DeviceID, $StatusCode, $input, $Filler2) = @array;
@@ -49,13 +49,55 @@ while(1)
     # print "Device-ID: $DeviceID\n";
     # print "Status: $StatusCode\n";
     # print "Inputs: $input\n";
-    print "Message: $data\n";
+    print "DeviceID: $ID->{DeviceID}\nNetID: $ID->{NetID}\nType: $ID->{Type}\nMessage: $ID->{Message}\n";
     print "MD5: $digest\n";
     print "----------\n";
     # notify client that response has been sent
     shutdown($client_socket, 1);
-    $client_socket->recv($data, 1024);
-    print "$data\n";
+    # $client_socket->recv($data, 1024);
+    #$ID->send(shift);
+    #print "$ID->{Message}\n";
 }
  
 $socket->close();
+
+package NetCC::Server;
+
+use Log::Log4perl qw(get_logger);
+
+sub new {
+    my($class, $Message) = @_;
+
+    my $logger = get_logger("NetCC::Server");
+
+    if(defined $Message) {
+        my $NetID  = substr $Message, 4, 4;
+        my $DeviceID  = substr $Message, 8, 4;
+        my $Type  = substr $Message, 0, 4;
+        $Message = substr $Message, 12;
+        $logger->debug("New Message: $Message NetID: $NetID");
+        return bless { Message => $Message, NetID => $NetID, DeviceID => $DeviceID, Type => $Type }, $class;
+    }
+    $logger->error("No defined");
+    return undef;
+}
+
+sub Check {
+    my($self) = @_;
+    use Switch;
+    $logger->debug("Type: $self->{Type}\n");
+    switch ($self->{Type}) {
+    case "0000"	{
+        #$logger->debug("Type: 0000");
+        Check_In($self->{Message});
+        }
+    else { print "previous case not true" }
+    }
+    }
+sub Check_In {
+    my ($class, $MSG) = @_;
+    $logger->debug($self->{Message});
+    my $input = substr $MSG, 0, 4;
+    my $Filler = substr $MSG, 5;
+    $logger->debug("Input: $input Filler: $Filler");
+}
